@@ -377,8 +377,17 @@ class ConcavePolygon
             float handedness = Vertex::getHandedness(_vertices[mod(i-1, _vertices.size())],
                                                      _vertices[i],
                                                      _vertices[mod(i+1, _vertices.size())]);
-            if(handedness < 0.0f)
-                return i;
+            if (right_handed)
+            {
+                if(handedness < 0.0f)
+                    return i;
+            }
+
+            else
+            {
+                if(handedness > 0.0f)
+                    return i;
+            }
         }
 
         return -1;
@@ -459,8 +468,7 @@ public:
     ConcavePolygon(VertexArray const & _vertices) : vertices{_vertices}
     {
         if(vertices.size() > 2)
-            if(checkIfRightHanded() == false)
-                flipPolygon();
+            checkIfRightHanded();
     }
     ConcavePolygon() {}
 
@@ -527,7 +535,7 @@ public:
             return;
         }
 
-        const float TOLERANCE = 1e-5;
+        const float TOLERANCE = 0;
 
         VertexIntMap slicedVertices = verticesAlongLineSegment(segment, vertices);
         slicedVertices = cullByDistance(slicedVertices, segment.startPos, 2);
