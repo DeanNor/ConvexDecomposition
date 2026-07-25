@@ -4,15 +4,14 @@
 #include <vector>
 #include <cmath>
 #include <map>
-#include <iostream>
 
 namespace cxd
 {
 
 struct Vec2
 {
-    double x;
-    double y;
+    float x;
+    float y;
 
     static float length(Vec2 const & v)
     {
@@ -38,6 +37,10 @@ struct Vec2
     static float cross(Vec2 const & v1, Vec2 const & v2)
     {
         return v1.x*v2.y - v1.y*v2.x;
+    }
+
+    static float orient(Vec2 a, Vec2 b, Vec2 c) {
+        return cross(b-a, c-a);
     }
 
     Vec2 operator - (Vec2 const & v1) const
@@ -121,6 +124,15 @@ struct LineSegment
 
         return LineSegment(newStartPos, newFinalPos);
     }
+
+    static bool if_intersects(LineSegment s1, LineSegment s2)
+    {
+        float oa = Vec2::orient(s2.startPos,s2.finalPos,s1.startPos), 
+            ob = Vec2::orient(s2.startPos,s2.finalPos,s1.finalPos),            
+            oc = Vec2::orient(s1.startPos,s1.finalPos,s2.startPos),            
+            od = Vec2::orient(s1.startPos,s1.finalPos,s2.finalPos);
+        return (oa*ob < 0.f && oc*od < 0.f);
+    } 
 
     static std::pair<bool, Vec2> intersects(LineSegment s1, LineSegment s2)
     {
@@ -239,8 +251,6 @@ class ConcavePolygon
     {
         LineSegment ls(originalPosition, vert.position);
         VertexIntMap intersectingVerts = verticesAlongLineSegment(ls, polygonVertices);
-
-        std::cout << intersectingVerts.size() << " intverts\n";
 
         if(intersectingVerts.size() > 3)
             return false;
@@ -444,6 +454,8 @@ class ConcavePolygon
     }
 
 public:
+    bool right_handed;
+
     ConcavePolygon(VertexArray const & _vertices) : vertices{_vertices}
     {
         if(vertices.size() > 2)
@@ -452,9 +464,29 @@ public:
     }
     ConcavePolygon() {}
 
+    bool selfIntersects()
+    {
+        for (size_t x = 0; x < vertices.size(); ++x)
+        {
+            for (size_t y = x + 2; y < vertices.size(); ++y)
+            {
+                LineSegment seg_a(vertices.at(x).position, vertices.at(mod(x + 1, vertices.size())).position);
+                LineSegment seg_b(vertices.at(y).position, vertices.at(mod(y + 1, vertices.size())).position);
+
+                if (LineSegment::if_intersects(seg_a, seg_b))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     bool checkIfRightHanded()
     {
-        return checkIfRightHanded(vertices);
+        right_handed = checkIfRightHanded(vertices);
+        return right_handed;
     }
 
     void slicePolygon(int vertex1, int vertex2)
@@ -518,18 +550,14 @@ public:
               ( perpDistance <= TOLERANCE && (slicedVertices.find(i)==slicedVertices.end()) )
             )
             {
-                //std::cout << relCrossProd << ", i: " << i << "\n";
                 if((i > it->first) && (i <= (++it)->first))
                 {
                     leftVerts.push_back(vertices[i]);
-                    //std::cout << i << " leftVertAdded\n";
                 }
                 else
                 {
                     rightVerts.push_back(vertices[i]);
-                    //std::cout << i << " rightVertAdded\n";
                 }
-
             }
 
             if(slicedVertices.find(i) != slicedVertices.end())
@@ -554,6 +582,11 @@ public:
         return vertices;
     }
 
+    void addSubPolygon(ConcavePolygon new_poly)
+    {
+        subPolygons.push_back(new_poly);
+    }
+
     ConcavePolygon const & getSubPolygon(int subPolyIndex) const
     {
         if(subPolygons.size() > 0 && subPolyIndex < (int)subPolygons.size())
@@ -562,20 +595,29 @@ public:
         return *this;
     }
 
+    void setSubPolygons(PolygonArray new_polys)
+    {
+        subPolygons = new_polys;
+    }
+
+    PolygonArray& getSubPolygons()
+    {
+        return subPolygons;
+    }
+
     int getNumberSubPolys() const
     {
         return subPolygons.size();
     }
 
-    void returnLowestLevelPolys(std::vector<ConcavePolygon > & returnArr)
+    void returnLowestLevelPolys(std::vector<ConcavePolygon> & returnArr) const
     {
         if(subPolygons.size() > 0)
         {
             subPolygons[0].returnLowestLevelPolys(returnArr);
             subPolygons[1].returnLowestLevelPolys(returnArr);
         }
-        else
-            returnArr.push_back(*this);
+        else returnArr.push_back(*this);
     }
 
     void reset()
@@ -586,6 +628,16 @@ public:
             subPolygons[1].reset();
             subPolygons.clear();
         }
+    }
+
+    void addPoint(Vec2 point)
+    {
+        vertices.push_back(point);
+    }
+
+    void setPoint(size_t where, Vec2 val)
+    {
+        vertices.at(where) = val;
     }
 
     Vec2 getPoint(unsigned int index) const
