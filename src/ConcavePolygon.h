@@ -1,6 +1,7 @@
 #ifndef CONCAVE_POLY_H
 #define CONCAVE_POLY_H
 
+#include <cstddef>
 #include <vector>
 #include <cmath>
 #include <map>
@@ -306,7 +307,7 @@ class ConcavePolygon
             }
 
 
-            float minDistance = 1e+15;
+            float minDistance = 1e+1;
             int closest = indices[0];
             for(unsigned int i=0; i<indices.size(); ++i)
             {
@@ -641,6 +642,11 @@ public:
     void addPoint(Vec2 point)
     {
         vertices.push_back(point);
+    }
+
+    void addPointAt(Vec2 point, std::size_t at)
+    {
+        vertices.insert(vertices.begin() + at, point);
     }
 
     void setPoint(size_t where, Vec2 val)
